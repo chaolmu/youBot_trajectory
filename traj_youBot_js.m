@@ -4,11 +4,12 @@ function traj_youBot_js()
     clc; clear all; close all;
 
     % start state [x y z pitch roll]
-    PoseA = [-5 0 44 65 0];
-    VelocityA = [0 0 0 0 0]; % so far no support for 
+      % start state [x y z pitch roll]
+    PoseA = [35 17 20 -10 20];
+    VelocityA = [0 0 0 0 0]; % so far no support for other value
 
     % end state [x y z pitch roll]
-    PoseE = [-15 20 54 50 20];
+    PoseE = [25 10 30 -25 0];
     VelocityE = [0 0 0 0 0];
 
     % time window and step size
@@ -26,23 +27,27 @@ function traj_youBot_js()
     d5 = 21.75;
 
     k_Arm1 = 1;
-    k_Arm3 = 1;
+    k_Arm3 = -1;
 
     %=============== Graphicial setup====================
-    ax = createStage([-6 10 -10 10 -2 12], [-24 41]);
+    ax = createStage([-6 10 -10 10 -2 12], [50 20]);
     set(ax, 'OuterPosition', [0 0 0.5 1]);
     set(gcf,'units','normalized','outerposition',[0 0 1 1])
 
     camlight();
-    linkColors = {[.4 .4 .4], [1 1 1], [.5 1 .5], [.5 .5 1], [.5 1 1], [1 .5 .5]};
+    linkColors = {[.4 .4 .4], [.5 1 .5], [.5 .5 1], [.5 1 1], [1 .5 .5], [1 1 1]};
 
     robot = youBot(d1, a1, a2, a3, d5);
     robot.colorLinks(linkColors{1}, linkColors{2}, linkColors{3}, linkColors{4}, linkColors{5}, linkColors{6});
-    robot.setTransparency(0.5);
+    robot.setTransparency(1);
+    robot.hideOrigins();
+    
+    Theta_ini = ik_Youbot(PoseA,k_Arm1,k_Arm3);
+    robot.setJoins(Theta_ini);
 
     % control UI
     hArmConfig1 = uicontrol('Style', 'checkbox', 'String', 'k_arm1 = -1', 'Position', [5, 5, 100, 20], 'Value', 0);
-    hArmConfig3 = uicontrol('Style', 'checkbox', 'String', 'k_arm3 = -1', 'Position', [120, 5, 100, 20], 'Value', 0);
+    hArmConfig3 = uicontrol('Style', 'checkbox', 'String', 'k_arm3 = -1', 'Position', [120, 5, 100, 20], 'Value', 1);
     hPlayBtn = uicontrol('Style', 'pushbutton', 'String', 'Play', 'Position', [240, 0, 80, 40], 'Callback', @play);
 
     % Path of the TCP in 3D view
@@ -51,28 +56,28 @@ function traj_youBot_js()
     % Diagram preparation
     axTheta = axes('OuterPosition', [0.5 2/3 0.5 1/3], 'XLim', [TA TE]);
     hTheta1 = line('XData', TA, 'YData', 0, 'Color', linkColors{1}, 'Marker', '.');
-    hTheta2 = line('XData', TA, 'YData', 0, 'Color', linkColors{3}, 'Marker', '.');
-    hTheta3 = line('XData', TA, 'YData', 0, 'Color', linkColors{4}, 'Marker', '.');
-    hTheta4 = line('XData', TA, 'YData', 0, 'Color', linkColors{5}, 'Marker', '.');
-    hTheta5 = line('XData', TA, 'YData', 0, 'Color', linkColors{6}, 'Marker', '.');
+    hTheta2 = line('XData', TA, 'YData', 0, 'Color', linkColors{2}, 'Marker', '.');
+    hTheta3 = line('XData', TA, 'YData', 0, 'Color', linkColors{3}, 'Marker', '.');
+    hTheta4 = line('XData', TA, 'YData', 0, 'Color', linkColors{4}, 'Marker', '.');
+    hTheta5 = line('XData', TA, 'YData', 0, 'Color', linkColors{5}, 'Marker', '.');
     legend('\theta_1','\theta_2','\theta_3','\theta_4', '\theta_5');
     ylabel('\theta in deg');
     grid on;
     axThetaDot = axes('OuterPosition', [0.5 1/3 0.5 1/3], 'XLim', [TA TE]);
     hThetaDot1 = line('XData', TA, 'YData', 0, 'Color', linkColors{1}, 'Marker', '.');
-    hThetaDot2 = line('XData', TA, 'YData', 0, 'Color', linkColors{3}, 'Marker', '.');
-    hThetaDot3 = line('XData', TA, 'YData', 0, 'Color', linkColors{4}, 'Marker', '.');
-    hThetaDot4 = line('XData', TA, 'YData', 0, 'Color', linkColors{5}, 'Marker', '.');
-    hThetaDot5 = line('XData', TA, 'YData', 0, 'Color', linkColors{6}, 'Marker', '.');
+    hThetaDot2 = line('XData', TA, 'YData', 0, 'Color', linkColors{2}, 'Marker', '.');
+    hThetaDot3 = line('XData', TA, 'YData', 0, 'Color', linkColors{3}, 'Marker', '.');
+    hThetaDot4 = line('XData', TA, 'YData', 0, 'Color', linkColors{4}, 'Marker', '.');
+    hThetaDot5 = line('XData', TA, 'YData', 0, 'Color', linkColors{5}, 'Marker', '.');
     legend('\omega_1','\omega_2','\omega_3','\omega_4', '\omega_5');
     ylabel('\omega in deg/s');
     grid on;
     axTheta2Dot = axes('OuterPosition', [0.5 0 0.5 1/3], 'XLim', [TA TE]);
     hTheta2Dot1 = line('XData', TA, 'YData', 0, 'Color', linkColors{1}, 'Marker', '.');
-    hTheta2Dot2 = line('XData', TA, 'YData', 0, 'Color', linkColors{3}, 'Marker', '.');
-    hTheta2Dot3 = line('XData', TA, 'YData', 0, 'Color', linkColors{4}, 'Marker', '.');
-    hTheta2Dot4 = line('XData', TA, 'YData', 0, 'Color', linkColors{5}, 'Marker', '.');
-    hTheta2Dot5 = line('XData', TA, 'YData', 0, 'Color', linkColors{6}, 'Marker', '.');
+    hTheta2Dot2 = line('XData', TA, 'YData', 0, 'Color', linkColors{2}, 'Marker', '.');
+    hTheta2Dot3 = line('XData', TA, 'YData', 0, 'Color', linkColors{3}, 'Marker', '.');
+    hTheta2Dot4 = line('XData', TA, 'YData', 0, 'Color', linkColors{4}, 'Marker', '.');
+    hTheta2Dot5 = line('XData', TA, 'YData', 0, 'Color', linkColors{5}, 'Marker', '.');
     legend('\alpha_1','\alpha_2','\alpha_3','\alpha_4', '\alpha_5');
     ylabel('\alpha in deg^2/s');
     grid on;
@@ -123,7 +128,7 @@ function traj_youBot_js()
             end
             
             % Refresh 3D view
-            robot.setJoins(Theta(1),Theta(2),Theta(3),Theta(4),Theta(5));
+            robot.setJoins(Theta);
             tcp = robot.getTcp();
             
             % record data for this step
@@ -243,14 +248,15 @@ function traj_youBot_js()
         j4 = gphi-j2-j3;
 
         % fifth joint, determines the roll of the gripper (= wrist angle)
-        j5_cos = T_B_T(2,2)*cos(j1)-T_B_T(12)*sin(j1);
-        if j5_cos > 0.9999999
-            j5 = 0;
-        elseif j3_cos < -0.9999999
-            j5 = pi;
-        else
-            j5 = atan2((T_B_T(2,1)*cos(j1)-T_B_T(1,1)*sin(j1)), (T_B_T(2,2)*cos(j1)-T_B_T(12)*sin(j1)));
-        end  
+%         j5_cos = T_B_T(2,2)*cos(j1)-T_B_T(12)*sin(j1);
+%         if j5_cos > 0.9999999
+%             j5 = 0;
+%         elseif j3_cos < -0.9999999
+%             j5 = pi;
+%         else
+%             j5 = atan2((T_B_T(2,1)*cos(j1)-T_B_T(1,1)*sin(j1)), (T_B_T(2,2)*cos(j1)-T_B_T(12)*sin(j1)));
+%         end  
+        j5 = ggamma;
 
         if jointconfig1 == -1
             j2 = pi-j2;
