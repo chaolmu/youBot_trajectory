@@ -16,7 +16,7 @@ function traj_youBot_ws()
     TE = 5;
     TDelta = 0.1;
 
-    % global varibles
+    % global varibles 
     global d1 a1 a2 a3 d5
 
     d1 = 14.7;
